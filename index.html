@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>合成大西瓜</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+    </style>
+</head>
+<body>
+<script>
+const config = {
+    type: Phaser.AUTO,
+    width: 600,
+    height: 800,
+    canvasCreated: function(canvas) {
+        canvas.willReadFrequently = true;
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 300 },
+            debug: false
+        }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+const game = new Phaser.Game(config);
+
+let fruits;
+let nextFruit;
+let score = 0;
+let scoreText;
+let gameOver = false;
+
+const fruitTypes = [
+    { key: 'fruit1', size: 25, points: 1 },
+    { key: 'fruit2', size: 35, points: 2 },
+    { key: 'fruit3', size: 45, points: 4 },
+    { key: 'fruit4', size: 55, points: 8 },
+    { key: 'fruit5', size: 65, points: 16 },
+    { key: 'fruit6', size: 75, points: 32 },
+    { key: 'fruit7', size: 85, points: 64 },
+    { key: 'fruit8', size: 95, points: 128 },
+    { key: 'fruit9', size: 105, points: 256 },
+    { key: 'fruit10', size: 115, points: 512 },
+    { key: 'fruit11', size: 125, points: 1024 }
+];
+
+function preload() {
+    // 加载水果图片
+    for (let i = 1; i <= 11; i++) {
+        this.load.svg(`fruit${i}`, `images/fruit${i}.svg`);
+    }
+}
+
+function create() {
+    fruits = this.physics.add.group();
+    
+    // 添加分数显示
+    scoreText = this.add.text(16, 16, '分数: 0', { fontSize: '32px', fill: '#fff' });
+    
+    // 添加边界
+    const bounds = this.add.rectangle(300, 400, 580, 760, 0x666666);
+    bounds.setStrokeStyle(4, 0xffffff);
+    
+    // 添加碰撞检测
+    this.physics.add.collider(fruits, fruits, handleFruitCollision);
+    
+    // 监听点击/触摸事件
+    this.input.on('pointerdown', dropFruit);
+    
+    // 生成第一个水果
+    createNextFruit.call(this);
+}
+
+function update() {
+    if (gameOver) return;
+    
+    // 移除超出边界的水果
+    fruits.getChildren().forEach(fruit => {
+        if (fruit.y > 800) {
+            fruit.destroy();
+        }
+    });
+}
+
+function createNextFruit() {
+    const randomIndex = Math.floor(Math.random() * 3); // 只生成前3种水果
+    const fruitType = fruitTypes[randomIndex];
+    nextFruit = {
+        type: fruitType,
+        x: this.input.x || 300
+    };
+}
+
+function dropFruit(pointer) {
+    if (gameOver) return;
+    
+    const fruit = fruits.create(pointer.x, 100, nextFruit.type.key);
+    fruit.setCircle(nextFruit.type.size / 2);
+    fruit.setData('type', nextFruit.type);
+    fruit.setBounce(0.3);
+    fruit.setCollideWorldBounds(true);
+    
+    createNextFruit.call(this);
+}
+
+function handleFruitCollision(fruit1, fruit2) {
+    const type1 = fruit1.getData('type');
+    const type2 = fruit2.getData('type');
+    
+    if (type1.key === type2.key) {
+        const index = fruitTypes.indexOf(type1);
+        if (index < fruitTypes.length - 1) {
+            const newType = fruitTypes[index + 1];
+            const x = (fruit1.x + fruit2.x) / 2;
+            const y = (fruit1.y + fruit2.y) / 2;
+            
+            fruit1.destroy();
+            fruit2.destroy();
+            
+            const newFruit = fruits.create(x, y, newType.key);
+            newFruit.setCircle(newType.size / 2);
+            newFruit.setData('type', newType);
+            newFruit.setBounce(0.3);
+            newFruit.setCollideWorldBounds(true);
+            
+            score += newType.points;
+            scoreText.setText('分数: ' + score);
+            
+            // 检查是否获胜（合成最大的水果）
+            if (newType === fruitTypes[fruitTypes.length - 1]) {
+                gameOver = true;
+                this.add.text(300, 400, '恭喜获胜！', {
+                    fontSize: '64px',
+                    fill: '#fff'
+                }).setOrigin(0.5);
+            }
+        }
+    }
+}
+</script>
+</body>
+</html>
